@@ -20,8 +20,8 @@ from fastapi.responses import StreamingResponse
 from mangum import Mangum
 from pydantic import BaseModel, Field
 
-from backend.prompt import SYSTEM_PROMPT, build_messages
-from backend.retriever import FateRetriever
+from prompt import SYSTEM_PROMPT, build_messages
+from retriever import FateRetriever
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
