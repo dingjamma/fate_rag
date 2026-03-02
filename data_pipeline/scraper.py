@@ -1,6 +1,6 @@
 """
 Type-Moon Wiki Scraper
-Scrapes lore content from https://typemoon.fandom.com/wiki/
+Scrapes lore content from https://typemoon.fandom.com via the MediaWiki API
 and saves raw text as JSON to /data/raw/.
 """
 
@@ -10,15 +10,13 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urljoin
 
 import requests
-from bs4 import BeautifulSoup
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://typemoon.fandom.com/wiki/"
+API_URL = "https://typemoon.fandom.com/api.php"
 RAW_DATA_DIR = Path("data/raw")
 REQUEST_DELAY = 1.5  # seconds between requests (be polite)
 MAX_RETRIES = 3
@@ -84,87 +82,79 @@ TARGET_PAGES: dict[str, list[str]] = {
         "Fate/stay_night",
         "Fate/Zero",
         "Fate/Grand_Order",
-        "Heaven%27s_Feel",
+        "Heaven's_Feel",
         "Unlimited_Blade_Works_(route)",
     ],
 }
 
 
-def _make_request(url: str, session: requests.Session) -> Optional[requests.Response]:
-    """Make an HTTP GET request with retry logic and exponential backoff."""
+def _fetch_page_text(title: str, session: requests.Session) -> Optional[tuple[str, str]]:
+    """
+    Fetch plain text for a wiki page via the MediaWiki TextExtracts API.
+    Returns (resolved_title, plain_text) or None on failure.
+    """
+    params = {
+        "action": "query",
+        "titles": title,
+        "prop": "extracts",
+        "explaintext": "true",
+        "exsectionformat": "plain",
+        "redirects": "1",
+        "format": "json",
+    }
+
     for attempt in range(MAX_RETRIES):
         try:
-            response = session.get(url, timeout=10)
+            response = session.get(API_URL, params=params, timeout=15)
             response.raise_for_status()
-            return response
-        except requests.RequestException as e:
+            data = response.json()
+
+            pages = data.get("query", {}).get("pages", {})
+            if not pages:
+                logger.warning(f"No pages returned for: {title}")
+                return None
+
+            page = next(iter(pages.values()))
+
+            if "missing" in page:
+                logger.warning(f"Page not found: {title}")
+                return None
+
+            resolved_title = page.get("title", title)
+            extract = page.get("extract", "").strip()
+
+            if not extract:
+                logger.warning(f"Empty extract for: {title}")
+                return None
+
+            return resolved_title, extract
+
+        except (requests.RequestException, json.JSONDecodeError, KeyError) as e:
             wait = RETRY_BACKOFF ** attempt
-            logger.warning(f"Request failed (attempt {attempt + 1}/{MAX_RETRIES}): {e}. Retrying in {wait:.1f}s...")
+            logger.warning(
+                f"Request failed (attempt {attempt + 1}/{MAX_RETRIES}): {e}. "
+                f"Retrying in {wait:.1f}s..."
+            )
             if attempt < MAX_RETRIES - 1:
                 time.sleep(wait)
-    logger.error(f"All retries exhausted for URL: {url}")
+
+    logger.error(f"All retries exhausted for: {title}")
     return None
 
 
-def _clean_html(soup: BeautifulSoup) -> str:
-    """
-    Extract main content from the wiki page, stripping navigation,
-    infoboxes, footers, and other boilerplate.
-    """
-    # Remove unwanted elements
-    for tag in soup.select(
-        "nav, footer, .navbox, .toc, .mw-editsection, "
-        ".infobox, #toc, .noprint, .mw-jump-link, "
-        ".page-header, .global-navigation, .fandom-sticky-header, "
-        ".WikiaArticleFooter, .page-footer, script, style, "
-        "[role='navigation'], .portable-infobox"
-    ):
-        tag.decompose()
-
-    # Target the main article content
-    content_div = (
-        soup.select_one(".mw-parser-output")
-        or soup.select_one("#mw-content-text")
-        or soup.select_one(".page-content")
-    )
-
-    if not content_div:
-        logger.warning("Could not find main content div, using body text.")
-        return soup.get_text(separator="\n", strip=True)
-
-    # Extract text with sensible whitespace
-    paragraphs = []
-    for element in content_div.find_all(["p", "h2", "h3", "h4", "li"], recursive=True):
-        text = element.get_text(separator=" ", strip=True)
-        if text:
-            paragraphs.append(text)
-
-    return "\n\n".join(paragraphs)
-
-
 def scrape_page(slug: str, category: str, session: requests.Session) -> Optional[dict]:
-    """Scrape a single wiki page and return structured data."""
-    url = urljoin(BASE_URL, slug)
-    logger.info(f"Scraping [{category}] {url}")
+    """Fetch a single wiki page via the API and return structured data."""
+    logger.info(f"Fetching [{category}] {slug}")
 
-    response = _make_request(url, session)
-    if response is None:
+    result = _fetch_page_text(slug, session)
+    if result is None:
         return None
 
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Extract page title
-    title_tag = soup.select_one("h1.page-header__title") or soup.select_one("#firstHeading")
-    title = title_tag.get_text(strip=True) if title_tag else slug.replace("_", " ")
-
-    content = _clean_html(soup)
-    if not content.strip():
-        logger.warning(f"Empty content for {url}")
-        return None
+    resolved_title, content = result
 
     return {
-        "title": title,
-        "url": url,
+        "title": resolved_title,
+        "url": f"https://typemoon.fandom.com/wiki/{slug}",
         "slug": slug,
         "category": category,
         "content": content,
@@ -174,7 +164,7 @@ def scrape_page(slug: str, category: str, session: requests.Session) -> Optional
 
 def run_scraper(output_dir: Path = RAW_DATA_DIR) -> list[dict]:
     """
-    Scrape all target pages and save results to JSON files.
+    Fetch all target pages and save results to JSON files.
     Returns list of all scraped documents.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -182,13 +172,8 @@ def run_scraper(output_dir: Path = RAW_DATA_DIR) -> list[dict]:
     session = requests.Session()
     session.headers.update(
         {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/122.0.0.0 Safari/537.36"
-            ),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
+            "User-Agent": "FateRAG/1.0 (educational project; MediaWiki API client)",
+            "Accept": "application/json",
         }
     )
 
@@ -203,16 +188,13 @@ def run_scraper(output_dir: Path = RAW_DATA_DIR) -> list[dict]:
                 category_docs.append(doc)
                 all_docs.append(doc)
 
-            # Rate limiting
             time.sleep(REQUEST_DELAY)
 
-        # Save per-category file
         category_file = output_dir / f"{category}.json"
         with open(category_file, "w", encoding="utf-8") as f:
             json.dump(category_docs, f, ensure_ascii=False, indent=2)
         logger.info(f"Saved {len(category_docs)} documents to {category_file}")
 
-    # Save combined file
     combined_file = output_dir / "all_documents.json"
     with open(combined_file, "w", encoding="utf-8") as f:
         json.dump(all_docs, f, ensure_ascii=False, indent=2)
