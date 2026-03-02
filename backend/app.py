@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # ── Configuration ────────────────────────────────────────────────────────────
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 BEDROCK_REGION = os.getenv("BEDROCK_REGION", AWS_REGION)
-BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-5-20251029-v2:0")
+BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-5-20250929-v1:0")
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "2048"))
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
 
