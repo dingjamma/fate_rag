@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Data directories (scraped/generated — don't commit to git)
+data/raw/
+data/chunks/
+
+# AWS CDK
+cdk.out/
+*.js.map
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_meta
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Logs
+*.log
+logs/
+
+# Node (CDK CLI)
+node_modules/
+package-lock.json
