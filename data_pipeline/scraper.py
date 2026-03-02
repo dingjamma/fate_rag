@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 import requests
+from bs4 import BeautifulSoup
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -88,17 +89,36 @@ TARGET_PAGES: dict[str, list[str]] = {
 }
 
 
+def _clean_html(html: str) -> str:
+    """Extract plain text from rendered wiki HTML, stripping boilerplate."""
+    soup = BeautifulSoup(html, "html.parser")
+
+    for tag in soup.select(
+        "nav, footer, .navbox, .toc, .mw-editsection, "
+        ".infobox, #toc, .noprint, .mw-jump-link, "
+        "script, style, [role='navigation'], .portable-infobox, "
+        ".references, .reflist, sup.reference"
+    ):
+        tag.decompose()
+
+    paragraphs = []
+    for element in soup.find_all(["p", "h2", "h3", "h4", "li"], recursive=True):
+        text = element.get_text(separator=" ", strip=True)
+        if text:
+            paragraphs.append(text)
+
+    return "\n\n".join(paragraphs)
+
+
 def _fetch_page_text(title: str, session: requests.Session) -> Optional[tuple[str, str]]:
     """
-    Fetch plain text for a wiki page via the MediaWiki TextExtracts API.
+    Fetch a wiki page via the MediaWiki parse API (returns rendered HTML).
     Returns (resolved_title, plain_text) or None on failure.
     """
     params = {
-        "action": "query",
-        "titles": title,
-        "prop": "extracts",
-        "explaintext": "true",
-        "exsectionformat": "plain",
+        "action": "parse",
+        "page": title,
+        "prop": "text|displaytitle",
         "redirects": "1",
         "format": "json",
     }
@@ -109,25 +129,30 @@ def _fetch_page_text(title: str, session: requests.Session) -> Optional[tuple[st
             response.raise_for_status()
             data = response.json()
 
-            pages = data.get("query", {}).get("pages", {})
-            if not pages:
-                logger.warning(f"No pages returned for: {title}")
+            if "error" in data:
+                code = data["error"].get("code", "")
+                if code == "missingtitle":
+                    logger.warning(f"Page not found: {title}")
+                else:
+                    logger.warning(f"API error for {title}: {data['error']}")
                 return None
 
-            page = next(iter(pages.values()))
+            parse = data.get("parse", {})
+            resolved_title = BeautifulSoup(
+                parse.get("displaytitle", title), "html.parser"
+            ).get_text(strip=True)
+            html = parse.get("text", {}).get("*", "")
 
-            if "missing" in page:
-                logger.warning(f"Page not found: {title}")
+            if not html:
+                logger.warning(f"Empty HTML for: {title}")
                 return None
 
-            resolved_title = page.get("title", title)
-            extract = page.get("extract", "").strip()
-
-            if not extract:
-                logger.warning(f"Empty extract for: {title}")
+            content = _clean_html(html)
+            if not content.strip():
+                logger.warning(f"Empty content after cleaning: {title}")
                 return None
 
-            return resolved_title, extract
+            return resolved_title, content
 
         except (requests.RequestException, json.JSONDecodeError, KeyError) as e:
             wait = RETRY_BACKOFF ** attempt
