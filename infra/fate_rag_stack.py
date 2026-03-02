@@ -132,13 +132,15 @@ class FateRagStack(Stack):
         )
 
         # Bedrock permissions (Titan embeddings + Claude generation)
+        # Cross-region inference profiles (us.*) route internally to multiple US regions,
+        # so foundation-model ARNs must use wildcard region.
         lambda_role.add_to_policy(
             iam.PolicyStatement(
                 sid="BedrockInvokeModels",
                 actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
                 resources=[
                     f"arn:aws:bedrock:{self.region}::foundation-model/amazon.titan-embed-text-v1",
-                    f"arn:aws:bedrock:{self.region}::foundation-model/anthropic.claude-*",
+                    "arn:aws:bedrock:*::foundation-model/anthropic.claude-*",
                     f"arn:aws:bedrock:{self.region}:{self.account}:inference-profile/us.anthropic.claude-*",
                 ],
             )
