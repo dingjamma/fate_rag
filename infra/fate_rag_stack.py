@@ -138,7 +138,7 @@ class FateRagStack(Stack):
                 actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
                 resources=[
                     f"arn:aws:bedrock:{self.region}::foundation-model/amazon.titan-embed-text-v1",
-                    f"arn:aws:bedrock:{self.region}::foundation-model/claude-sonnet-4-20250514",
+                    f"arn:aws:bedrock:{self.region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
                     f"arn:aws:bedrock:{self.region}::foundation-model/anthropic.claude-*",
                 ],
             )
@@ -204,7 +204,7 @@ class FateRagStack(Stack):
             environment={
                 "AWS_REGION_NAME": self.region,
                 "BEDROCK_REGION": self.region,
-                "BEDROCK_MODEL_ID": "claude-sonnet-4-20250514",
+                "BEDROCK_MODEL_ID": "anthropic.claude-3-5-sonnet-20241022-v2:0",
                 "BEDROCK_EMBEDDING_MODEL": "amazon.titan-embed-text-v1",
                 "OPENSEARCH_ENDPOINT": self.collection.attr_collection_endpoint,
                 "OPENSEARCH_INDEX": "fate-lore",
