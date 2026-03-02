@@ -385,3 +385,4 @@ MIT © 2024 — Built with ⚔️ for the Type-Moon community.
 
 *This project is a fan work and is not affiliated with TYPE-MOON, Aniplex, or any official Fate Series rights holders.*
 
+
