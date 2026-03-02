@@ -8,7 +8,7 @@ Usage:
 
 import aws_cdk as cdk
 
-from infra.fate_rag_stack import FateRagStack
+from fate_rag_stack import FateRagStack
 
 app = cdk.App()
 
