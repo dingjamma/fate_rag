@@ -92,10 +92,13 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: CDK Bootstrap (idempotent)
-        run: cdk bootstrap --app "python3 infra/app.py"
+        run: |
+          cdk bootstrap \
+            aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ secrets.AWS_REGION }} \
+            --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
         env:
           CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
-          CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
       - name: CDK Deploy
         run: |
