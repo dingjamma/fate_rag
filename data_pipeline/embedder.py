@@ -161,7 +161,6 @@ def _build_actions(chunks_with_vectors: list[dict[str, Any]], index: str) -> lis
     for chunk in chunks_with_vectors:
         doc = {
             "_index": index,
-            "_id": chunk["chunk_id"],
             "_source": {
                 "vector": chunk["vector"],
                 "text": chunk["text"],
