@@ -1,0 +1,101 @@
+version: '3.8'
+
+# ── Local development environment for Fate RAG ───────────────────────────────
+# Starts OpenSearch + Dashboards for vector search without AWS costs.
+#
+# Usage:
+#   docker-compose up -d
+#   docker-compose down          # stop containers
+#   docker-compose down -v       # stop + delete volumes
+#
+# Then set in your .env:
+#   OPENSEARCH_ENDPOINT=http://localhost:9200
+#   USE_AWS_AUTH=false
+
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: fate-rag-opensearch
+    environment:
+      - cluster.name=fate-rag-cluster
+      - node.name=fate-rag-node-1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true     # Simpler for local dev; remove for production
+      # k-NN plugin is included in OpenSearch by default from 1.x
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"    # REST API
+      - "9600:9600"    # Performance Analyzer
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - fate-rag-network
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.13.0
+    container_name: fate-rag-dashboards
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    ports:
+      - "5601:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    networks:
+      - fate-rag-network
+
+  # Optional: local FastAPI backend (comment out if running with uvicorn directly)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fate-rag-api
+    environment:
+      - OPENSEARCH_ENDPOINT=http://opensearch:9200
+      - OPENSEARCH_INDEX=fate-lore
+      - OPENSEARCH_USER=admin
+      - OPENSEARCH_PASSWORD=admin
+      - USE_AWS_AUTH=false
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - BEDROCK_REGION=${BEDROCK_REGION:-us-east-1}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-claude-sonnet-4-20250514}
+      - BEDROCK_EMBEDDING_MODEL=${BEDROCK_EMBEDDING_MODEL:-amazon.titan-embed-text-v1}
+      # Pass AWS credentials for Bedrock (still requires real AWS even when OS is local)
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+    ports:
+      - "8000:8000"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - fate-rag-network
+    profiles:
+      - full  # Only start with: docker-compose --profile full up
+
+volumes:
+  opensearch-data:
+    driver: local
+
+networks:
+  fate-rag-network:
+    driver: bridge
