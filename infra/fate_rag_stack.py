@@ -11,6 +11,7 @@ Provisions:
 from __future__ import annotations
 
 import json
+import os
 
 import aws_cdk as cdk
 from aws_cdk import (
@@ -194,8 +195,8 @@ class FateRagStack(Stack):
             "BackendFunction",
             function_name=f"fate-rag-backend-{env_name}",
             runtime=lambda_.Runtime.PYTHON_3_11,
-            entry=".",
-            index="backend/app.py",
+            entry=os.path.join(os.path.dirname(__file__), "../backend"),
+            index="app.py",
             handler="handler",
             role=lambda_role,
             timeout=Duration.seconds(60),
