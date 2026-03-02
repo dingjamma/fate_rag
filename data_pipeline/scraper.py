@@ -26,25 +26,22 @@ RETRY_BACKOFF = 2.0  # exponential backoff base
 # Target pages grouped by category
 TARGET_PAGES: dict[str, list[str]] = {
     "servant": [
-        "Saber_(Fate/stay_night)",
-        "Archer_(Fate/stay_night)",
-        "Lancer_(Fate/stay_night)",
-        "Berserker_(Fate/stay_night)",
-        "Rider_(Fate/stay_night)",
-        "Caster_(Fate/stay_night)",
-        "Assassin_(Fate/stay_night)",
+        # Fate/stay night
+        "Saber_(Fate/stay_night)",       # Artoria Pendragon
+        "Archer_(Fate/stay_night)",       # EMIYA
+        "Lancer_(Fate/stay_night)",       # Cu Chulainn
+        "Heracles",                       # Berserker
+        "Rider_(Fate/stay_night)",        # Medusa
+        "Medea",                          # Caster
+        "Sasaki_Kojiro",                  # Assassin
+        "Hassan-i-Sabbah_(Fate/stay_night)",  # True Assassin (Heaven's Feel)
         "Gilgamesh",
-        "Cu_Chulainn",
-        "Medusa_(Fate/stay_night)",
-        "Medea_(Fate/stay_night)",
-        "Hassan-i-Sabbah_(Fate/stay_night)",
-        "Saber_(Fate/Zero)",
-        "Lancer_(Fate/Zero)",
-        "Rider_(Fate/Zero)",
-        "Berserker_(Fate/Zero)",
-        "Caster_(Fate/Zero)",
-        "Archer_(Fate/Zero)",
-        "Assassin_(Fate/Zero)",
+        # Fate/Zero
+        "Lancer_(Fate/Zero)",             # Diarmuid
+        "Rider_(Fate/Zero)",              # Iskandar
+        "Berserker_(Fate/Zero)",          # Lancelot
+        "Caster_(Fate/Zero)",             # Gilles de Rais
+        "Hassan-i-Sabbah_(Fate/Zero)",    # Hundred-Faced Hassan
     ],
     "noble_phantasm": [
         "Excalibur",
