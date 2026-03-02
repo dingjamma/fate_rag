@@ -22,6 +22,7 @@ from aws_cdk import aws_apigatewayv2 as apigwv2
 from aws_cdk import aws_apigatewayv2_integrations as integrations
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
+from aws_cdk.aws_lambda_python_alpha import PythonFunction
 from aws_cdk import aws_opensearchserverless as aoss
 from aws_cdk import aws_s3 as s3
 from constructs import Construct
@@ -188,29 +189,14 @@ class FateRagStack(Stack):
         )
 
         # ── Lambda function ───────────────────────────────────────────────────
-        self.backend_function = lambda_.Function(
+        self.backend_function = PythonFunction(
             self,
             "BackendFunction",
             function_name=f"fate-rag-backend-{env_name}",
             runtime=lambda_.Runtime.PYTHON_3_11,
-            handler="backend.app.handler",
-            code=lambda_.Code.from_asset(
-                ".",
-                exclude=[
-                    ".git",
-                    ".github",
-                    "__pycache__",
-                    "*.pyc",
-                    "infra",
-                    "data",
-                    "notebooks",
-                    "tests",
-                    "frontend",
-                    ".env*",
-                    "docker-compose.yml",
-                    "cdk.out",
-                ],
-            ),
+            entry=".",
+            index="backend/app.py",
+            handler="handler",
             role=lambda_role,
             timeout=Duration.seconds(60),
             memory_size=512,
