@@ -10,6 +10,7 @@ A production-grade **Retrieval-Augmented Generation (RAG)** chatbot for the **Fa
 [![OpenSearch](https://img.shields.io/badge/OpenSearch-2.13-005EB8?logo=opensearch&logoColor=white)](https://opensearch.org)
 [![CDK](https://img.shields.io/badge/AWS_CDK-Python-FF9900?logo=amazonaws&logoColor=white)](https://docs.aws.amazon.com/cdk/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-222?logo=github&logoColor=white)](https://dingjamma.github.io/fate_rag/)
 
 ---
 
@@ -81,7 +82,7 @@ This approach combines the fluency of large language models with the factual acc
 | **API** | AWS API Gateway (HTTP API) |
 | **Infrastructure** | AWS CDK (Python) |
 | **Data Pipeline** | BeautifulSoup4, tiktoken, boto3 |
-| **Frontend** | Vanilla HTML/CSS/JS |
+| **Frontend** | Vanilla HTML/CSS/JS (hosted on GitHub Pages) |
 | **Local Dev** | Docker Compose (OpenSearch + Dashboards) |
 
 ---
@@ -107,7 +108,10 @@ fate-rag/
 │   └── prompt.py               # System prompt + RAG template
 │
 ├── frontend/
-│   └── index.html              # Single-page chat UI
+│   └── index.html              # Single-page chat UI (source)
+│
+├── docs/
+│   └── index.html              # GitHub Pages deployment (copy of frontend)
 │
 ├── notebooks/
 │   └── rag_exploration.ipynb   # EDA: chunking, embedding, retrieval experiments
@@ -207,12 +211,18 @@ uvicorn backend.app:app --reload --port 8000
 
 ### 6. Open the frontend
 
-Open `frontend/index.html` in a browser, or serve it:
+**Locally** — open `frontend/index.html` in a browser, or serve it:
 
 ```bash
 python -m http.server 3000 --directory frontend
 # Then open http://localhost:3000
 ```
+
+**Live (GitHub Pages)** — the UI is also hosted at:
+```
+https://dingjamma.github.io/fate_rag/
+```
+It auto-detects the hostname and points to the AWS API Gateway when not on localhost.
 
 ---
 
