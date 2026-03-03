@@ -13,8 +13,11 @@ from typing import Any, Optional
 
 import boto3
 from botocore.exceptions import ClientError, EndpointResolutionError
+from dotenv import load_dotenv
 from opensearchpy import OpenSearch, RequestsHttpConnection, helpers
 from requests_aws4auth import AWS4Auth
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
