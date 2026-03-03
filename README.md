@@ -374,12 +374,38 @@ The workflow at `.github/workflows/deploy.yml`:
 
 ---
 
+## Next Steps — Expanding the Knowledge Base
+
+The current dataset covers Fate/stay night and Fate/Zero. The priority roadmap is to expand coverage across the broader Type-Moon universe:
+
+### Content Expansion
+
+| Series | Coverage | Priority | Notes |
+|---|---|---|---|
+| **Fate/Grand Order** | Servants, Ascension lore, interludes, story chapters | High | 300+ servants; scrape FGO wiki / fandom |
+| **Fate/Extra & Fate/Extra CCC** | Moon Cell, Hakuno, BB, CCC servants | High | Distinct lore from Nasuverse proper |
+| **Fate/Apocrypha** | Black/Red Faction servants, Ruler, Shirou Kotomine | Medium | Well-documented on Type-Moon wiki |
+| **Fate/Strange Fake** | False servants, Snowfield Grail War | Medium | Ongoing novel; partial wiki coverage |
+| **Fate/Prototype** | Original Fate concepts, Arthur Pendragon | Low | Limited source material |
+| **Lord El-Melloi II Case Files** | Clock Tower mage lore, El-Melloi | Medium | Rich worldbuilding for mage society |
+| **Tsukihime / Melty Blood** | Arcs, Shiki, True Ancestors, Dead Apostles | Low | Separate continuity but shared Nasuverse |
+| **Mahoutsukai no Yoru** | Mage origins, Aoko, Alice | Low | Prequel to Nasuverse; limited English coverage |
+
+### Data Pipeline Tasks
+
+- [ ] **FGO scraper**: Target [FGO wiki](https://fategrandorder.fandom.com) — servant profiles, NP descriptions, bond/interlude lore
+- [ ] **Fate/Extra scraper**: Target [Type-Moon wiki Extra pages](https://typemoon.fandom.com/wiki/Fate/EXTRA) — Moon Cell mechanics, BB route
+- [ ] **Category tags**: Add `fgo`, `extra`, `apocrypha`, `strange_fake` category values to the chunker and OpenSearch index mapping
+- [ ] **Filter UI**: Expose new categories in the frontend filter bar
+- [ ] **Deduplication**: Servants who appear in multiple series (e.g. Cu Chulainn, Tamamo) should be merged/cross-referenced
+
+---
+
 ## Future Improvements
 
 - [ ] **Hybrid search**: Combine k-NN vector search with BM25 lexical search (OpenSearch hybrid query) for better recall
 - [ ] **Re-ranking**: Add a cross-encoder re-ranker to improve precision of retrieved chunks
 - [ ] **Streaming UI**: Full SSE streaming support in the frontend (the backend already supports it)
-- [ ] **FGO Integration**: Expand the data pipeline to cover Fate/Grand Order servant profiles (5000+ entries)
 - [ ] **Citation links**: Render source citations as clickable links in the chat UI
 - [ ] **Authentication**: Add Cognito or API key authentication to the API Gateway
 - [ ] **Evaluation**: Add a RAGAS or TruLens evaluation pipeline to measure answer quality
