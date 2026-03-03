@@ -10,6 +10,7 @@ A production-grade **Retrieval-Augmented Generation (RAG)** chatbot for the **Fa
 [![OpenSearch](https://img.shields.io/badge/OpenSearch-2.13-005EB8?logo=opensearch&logoColor=white)](https://opensearch.org)
 [![CDK](https://img.shields.io/badge/AWS_CDK-Python-FF9900?logo=amazonaws&logoColor=white)](https://docs.aws.amazon.com/cdk/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-222?logo=github&logoColor=white)](https://dingjamma.github.io/fate_rag/)
 
 ---
 
@@ -81,7 +82,7 @@ This approach combines the fluency of large language models with the factual acc
 | **API** | AWS API Gateway (HTTP API) |
 | **Infrastructure** | AWS CDK (Python) |
 | **Data Pipeline** | BeautifulSoup4, tiktoken, boto3 |
-| **Frontend** | Vanilla HTML/CSS/JS |
+| **Frontend** | Vanilla HTML/CSS/JS (hosted on GitHub Pages) |
 | **Local Dev** | Docker Compose (OpenSearch + Dashboards) |
 
 ---
@@ -107,7 +108,10 @@ fate-rag/
 │   └── prompt.py               # System prompt + RAG template
 │
 ├── frontend/
-│   └── index.html              # Single-page chat UI
+│   └── index.html              # Single-page chat UI (source)
+│
+├── docs/
+│   └── index.html              # GitHub Pages deployment (copy of frontend)
 │
 ├── notebooks/
 │   └── rag_exploration.ipynb   # EDA: chunking, embedding, retrieval experiments
@@ -207,12 +211,18 @@ uvicorn backend.app:app --reload --port 8000
 
 ### 6. Open the frontend
 
-Open `frontend/index.html` in a browser, or serve it:
+**Locally** — open `frontend/index.html` in a browser, or serve it:
 
 ```bash
 python -m http.server 3000 --directory frontend
 # Then open http://localhost:3000
 ```
+
+**Live (GitHub Pages)** — the UI is also hosted at:
+```
+https://dingjamma.github.io/fate_rag/
+```
+It auto-detects the hostname and points to the AWS API Gateway when not on localhost.
 
 ---
 
@@ -364,12 +374,38 @@ The workflow at `.github/workflows/deploy.yml`:
 
 ---
 
+## Next Steps — Expanding the Knowledge Base
+
+The current dataset covers Fate/stay night and Fate/Zero. The priority roadmap is to expand coverage across the broader Type-Moon universe:
+
+### Content Expansion
+
+| Series | Coverage | Priority | Notes |
+|---|---|---|---|
+| **Fate/Grand Order** | Servants, Ascension lore, interludes, story chapters | High | 300+ servants; scrape FGO wiki / fandom |
+| **Fate/Extra & Fate/Extra CCC** | Moon Cell, Hakuno, BB, CCC servants | High | Distinct lore from Nasuverse proper |
+| **Fate/Apocrypha** | Black/Red Faction servants, Ruler, Shirou Kotomine | Medium | Well-documented on Type-Moon wiki |
+| **Fate/Strange Fake** | False servants, Snowfield Grail War | Medium | Ongoing novel; partial wiki coverage |
+| **Fate/Prototype** | Original Fate concepts, Arthur Pendragon | Low | Limited source material |
+| **Lord El-Melloi II Case Files** | Clock Tower mage lore, El-Melloi | Medium | Rich worldbuilding for mage society |
+| **Tsukihime / Melty Blood** | Arcs, Shiki, True Ancestors, Dead Apostles | Low | Separate continuity but shared Nasuverse |
+| **Mahoutsukai no Yoru** | Mage origins, Aoko, Alice | Low | Prequel to Nasuverse; limited English coverage |
+
+### Data Pipeline Tasks
+
+- [ ] **FGO scraper**: Target [FGO wiki](https://fategrandorder.fandom.com) — servant profiles, NP descriptions, bond/interlude lore
+- [ ] **Fate/Extra scraper**: Target [Type-Moon wiki Extra pages](https://typemoon.fandom.com/wiki/Fate/EXTRA) — Moon Cell mechanics, BB route
+- [ ] **Category tags**: Add `fgo`, `extra`, `apocrypha`, `strange_fake` category values to the chunker and OpenSearch index mapping
+- [ ] **Filter UI**: Expose new categories in the frontend filter bar
+- [ ] **Deduplication**: Servants who appear in multiple series (e.g. Cu Chulainn, Tamamo) should be merged/cross-referenced
+
+---
+
 ## Future Improvements
 
 - [ ] **Hybrid search**: Combine k-NN vector search with BM25 lexical search (OpenSearch hybrid query) for better recall
 - [ ] **Re-ranking**: Add a cross-encoder re-ranker to improve precision of retrieved chunks
 - [ ] **Streaming UI**: Full SSE streaming support in the frontend (the backend already supports it)
-- [ ] **FGO Integration**: Expand the data pipeline to cover Fate/Grand Order servant profiles (5000+ entries)
 - [ ] **Citation links**: Render source citations as clickable links in the chat UI
 - [ ] **Authentication**: Add Cognito or API key authentication to the API Gateway
 - [ ] **Evaluation**: Add a RAGAS or TruLens evaluation pipeline to measure answer quality
