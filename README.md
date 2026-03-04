@@ -14,6 +14,14 @@ A production-grade **Retrieval-Augmented Generation (RAG)** chatbot for the **Fa
 
 ---
 
+## 🚀 Live Demo
+
+> **Try it now:** [**dingjamma.github.io/fate_rag**](https://dingjamma.github.io/fate_rag/)
+
+Ask it anything about the Fate universe — servants, Noble Phantasms, Masters, the Holy Grail War, lore from Fate/stay night and Fate/Zero. The backend is a real serverless AWS stack (Bedrock + OpenSearch Serverless) running live.
+
+---
+
 ## Architecture
 
 ```
