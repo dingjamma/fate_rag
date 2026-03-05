@@ -2,7 +2,7 @@
 
 > *"I am the bone of my sword..."*
 
-A production-grade **Retrieval-Augmented Generation (RAG)** chatbot for the **Fate Series** universe — powered by AWS Bedrock (Claude + Titan Embeddings), OpenSearch Serverless, and FastAPI.
+A production-grade **Retrieval-Augmented Generation (RAG)** chatbot for the **Fate Series** universe — powered by AWS Bedrock (Claude + Titan Embeddings), OpenSearch (provisioned, t3.small.search), and FastAPI.
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
 [![AWS Bedrock](https://img.shields.io/badge/AWS-Bedrock-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com/bedrock/)
@@ -18,7 +18,7 @@ A production-grade **Retrieval-Augmented Generation (RAG)** chatbot for the **Fa
 
 > **Try it now:** [**dingjamma.github.io/fate_rag**](https://dingjamma.github.io/fate_rag/)
 
-Ask it anything about the Fate universe — servants, Noble Phantasms, Masters, the Holy Grail War, lore from Fate/stay night and Fate/Zero. The backend is a real serverless AWS stack (Bedrock + OpenSearch Serverless) running live.
+Ask it anything about the Fate universe — servants, Noble Phantasms, Masters, the Holy Grail War, lore from Fate/stay night and Fate/Zero. The backend is a real AWS stack (Bedrock + OpenSearch provisioned domain) running live.
 
 ---
 
@@ -42,7 +42,7 @@ Ask it anything about the Fate universe — servants, Noble Phantasms, Masters, 
                     └──────┬──────┘                   └──────────────────────┘
                            │
               ┌────────────▼───────────┐
-              │   OpenSearch Serverless │
+              │  OpenSearch Provisioned  │
               │   (fate-lore index)     │
               │   k-NN vector search    │
               └────────────┬───────────┘
@@ -84,7 +84,7 @@ This approach combines the fluency of large language models with the factual acc
 |---|---|
 | **Generation** | AWS Bedrock — `claude-sonnet-4-20250514` |
 | **Embeddings** | AWS Bedrock — `amazon.titan-embed-text-v1` (1536-dim) |
-| **Vector Store** | AWS OpenSearch Serverless (k-NN, HNSW) |
+| **Vector Store** | AWS OpenSearch provisioned domain — `t3.small.search`, 10 GB GP3 EBS, k-NN HNSW |
 | **Backend** | FastAPI + Mangum (Lambda adapter) |
 | **Compute** | AWS Lambda (Python 3.11) |
 | **API** | AWS API Gateway (HTTP API) |
@@ -238,7 +238,7 @@ It auto-detects the hostname and points to the AWS API Gateway when not on local
 
 ### Prerequisites
 - AWS CDK CLI: `npm install -g aws-cdk`
-- AWS credentials with permissions for Lambda, API Gateway, OpenSearch Serverless, S3, Bedrock, IAM
+- AWS credentials with permissions for Lambda, API Gateway, OpenSearch Service, S3, Bedrock, IAM
 
 ### 1. Install CDK dependencies
 
@@ -275,7 +275,7 @@ cdk deploy --app "python3 infra/app.py" \
 After deployment, CDK will output your OpenSearch endpoint. Update your `.env`:
 
 ```bash
-OPENSEARCH_ENDPOINT=https://your-collection.us-east-1.aoss.amazonaws.com
+OPENSEARCH_ENDPOINT=https://search-fate-lore-dev-xxxx.us-east-1.es.amazonaws.com
 USE_AWS_AUTH=true
 ```
 

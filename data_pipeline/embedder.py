@@ -118,7 +118,7 @@ def _get_opensearch_client() -> OpenSearch:
             credentials.access_key,
             credentials.secret_key,
             AWS_REGION,
-            "aoss",
+            "es",
             session_token=credentials.token,
         )
         return OpenSearch(

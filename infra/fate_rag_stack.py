@@ -2,7 +2,7 @@
 Fate RAG CDK Stack
 Provisions:
   - S3 bucket for raw documents
-  - OpenSearch Serverless collection (vector search)
+  - OpenSearch provisioned domain (t3.small.search, single-node) for vector search
   - Lambda function (FastAPI backend via Mangum)
   - API Gateway HTTP API
   - IAM roles with least-privilege policies
@@ -10,7 +10,6 @@ Provisions:
 
 from __future__ import annotations
 
-import json
 import os
 
 import aws_cdk as cdk
@@ -21,11 +20,12 @@ from aws_cdk import (
 )
 from aws_cdk import aws_apigatewayv2 as apigwv2
 from aws_cdk import aws_apigatewayv2_integrations as integrations
+from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
-from aws_cdk.aws_lambda_python_alpha import PythonFunction
-from aws_cdk import aws_opensearchserverless as aoss
+from aws_cdk import aws_opensearchservice as opensearch
 from aws_cdk import aws_s3 as s3
+from aws_cdk.aws_lambda_python_alpha import PythonFunction
 from constructs import Construct
 
 
@@ -61,64 +61,6 @@ class FateRagStack(Stack):
             ],
         )
 
-        # ── OpenSearch Serverless ────────────────────────────────────────────
-        collection_name = f"fate-lore-{env_name}"
-
-        # Encryption policy
-        encryption_policy = aoss.CfnSecurityPolicy(
-            self,
-            "EncryptionPolicy",
-            name=f"fate-rag-enc-{env_name}",
-            type="encryption",
-            policy=json.dumps(
-                {
-                    "Rules": [
-                        {
-                            "ResourceType": "collection",
-                            "Resource": [f"collection/{collection_name}"],
-                        }
-                    ],
-                    "AWSOwnedKey": True,
-                }
-            ),
-        )
-
-        # Network policy (public for dev, VPC for prod ideally)
-        network_policy = aoss.CfnSecurityPolicy(
-            self,
-            "NetworkPolicy",
-            name=f"fate-rag-net-{env_name}",
-            type="network",
-            policy=json.dumps(
-                [
-                    {
-                        "Rules": [
-                            {
-                                "ResourceType": "collection",
-                                "Resource": [f"collection/{collection_name}"],
-                            },
-                            {
-                                "ResourceType": "dashboard",
-                                "Resource": [f"collection/{collection_name}"],
-                            },
-                        ],
-                        "AllowFromPublic": True,
-                    }
-                ]
-            ),
-        )
-
-        # OpenSearch Serverless collection
-        self.collection = aoss.CfnCollection(
-            self,
-            "FateLoreCollection",
-            name=collection_name,
-            type="VECTORSEARCH",
-            description="Fate Series lore vector store for RAG",
-        )
-        self.collection.add_dependency(encryption_policy)
-        self.collection.add_dependency(network_policy)
-
         # ── IAM: Lambda execution role ────────────────────────────────────────
         lambda_role = iam.Role(
             self,
@@ -132,8 +74,6 @@ class FateRagStack(Stack):
         )
 
         # Bedrock permissions (Titan embeddings + Claude generation)
-        # Cross-region inference profiles (us.*) route internally to multiple US regions,
-        # so foundation-model ARNs must use wildcard region.
         lambda_role.add_to_policy(
             iam.PolicyStatement(
                 sid="BedrockInvokeModels",
@@ -146,49 +86,45 @@ class FateRagStack(Stack):
             )
         )
 
-        # OpenSearch Serverless permissions
-        lambda_role.add_to_policy(
-            iam.PolicyStatement(
-                sid="OpenSearchServerlessAccess",
-                actions=["aoss:APIAccessAll"],
-                resources=[self.collection.attr_arn],
-            )
-        )
-
         # S3 read permissions for document bucket
         self.documents_bucket.grant_read(lambda_role)
 
-        # ── OpenSearch data access policy ─────────────────────────────────────
-        aoss.CfnAccessPolicy(
+        # ── OpenSearch provisioned domain ────────────────────────────────────
+        # t3.small.search: ~$25/month — predictable cost vs. Serverless OCU billing
+        self.domain = opensearch.Domain(
             self,
-            "DataAccessPolicy",
-            name=f"fate-rag-access-{env_name}",
-            type="data",
-            policy=json.dumps(
-                [
-                    {
-                        "Rules": [
-                            {
-                                "ResourceType": "index",
-                                "Resource": [f"index/{collection_name}/*"],
-                                "Permission": [
-                                    "aoss:CreateIndex",
-                                    "aoss:ReadDocument",
-                                    "aoss:WriteDocument",
-                                    "aoss:UpdateIndex",
-                                    "aoss:DescribeIndex",
-                                ],
-                            },
-                            {
-                                "ResourceType": "collection",
-                                "Resource": [f"collection/{collection_name}"],
-                                "Permission": ["aoss:DescribeCollectionItems"],
-                            },
-                        ],
-                        "Principal": [lambda_role.role_arn],
-                    }
-                ]
+            "FateLoreDomain",
+            domain_name=f"fate-lore-{env_name}",
+            version=opensearch.EngineVersion.OPENSEARCH_2_13,
+            capacity=opensearch.CapacityConfig(
+                data_nodes=1,
+                data_node_instance_type="t3.small.search",
             ),
+            ebs=opensearch.EbsOptions(
+                enabled=True,
+                volume_size=10,  # GB — plenty for lore chunks
+                volume_type=ec2.EbsDeviceVolumeType.GP3,
+            ),
+            removal_policy=RemovalPolicy.RETAIN if is_prod else RemovalPolicy.DESTROY,
+            access_policies=[
+                iam.PolicyStatement(
+                    actions=["es:ESHttp*"],
+                    principals=[lambda_role],
+                    resources=["*"],
+                )
+            ],
+            enforce_https=True,
+            node_to_node_encryption=True,
+            encryption_at_rest=opensearch.EncryptionAtRestOptions(enabled=True),
+        )
+
+        # Scope the Lambda role to just this domain
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                sid="OpenSearchDomainAccess",
+                actions=["es:ESHttp*"],
+                resources=[f"{self.domain.domain_arn}/*"],
+            )
         )
 
         # ── Lambda function ───────────────────────────────────────────────────
@@ -208,7 +144,7 @@ class FateRagStack(Stack):
                 "BEDROCK_REGION": self.region,
                 "BEDROCK_MODEL_ID": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
                 "BEDROCK_EMBEDDING_MODEL": "amazon.titan-embed-text-v1",
-                "OPENSEARCH_ENDPOINT": self.collection.attr_collection_endpoint,
+                "OPENSEARCH_ENDPOINT": f"https://{self.domain.domain_endpoint}",
                 "OPENSEARCH_INDEX": "fate-lore",
                 "USE_AWS_AUTH": "true",
                 "ENV": env_name,
@@ -250,8 +186,8 @@ class FateRagStack(Stack):
         cdk.CfnOutput(
             self,
             "OpenSearchEndpoint",
-            value=self.collection.attr_collection_endpoint,
-            description="OpenSearch Serverless collection endpoint",
+            value=self.domain.domain_endpoint,
+            description="OpenSearch provisioned domain endpoint",
             export_name=f"FateRagOpenSearchEndpoint-{env_name}",
         )
         cdk.CfnOutput(
