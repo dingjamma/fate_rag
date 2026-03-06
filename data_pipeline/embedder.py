@@ -113,7 +113,7 @@ def _get_opensearch_client() -> OpenSearch:
     falls back to basic auth for local docker-compose instance.
     """
     if USE_AWS_AUTH:
-        credentials = boto3.Session().get_credentials()
+        credentials = boto3.Session().get_credentials().get_frozen_credentials()
         aws_auth = AWS4Auth(
             credentials.access_key,
             credentials.secret_key,
