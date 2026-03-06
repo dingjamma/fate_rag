@@ -150,11 +150,14 @@ def _parse_local_endpoint(endpoint: str) -> tuple[str, int]:
 # ── Index management ─────────────────────────────────────────────────────────
 def ensure_index(client: OpenSearch, index: str = OPENSEARCH_INDEX) -> None:
     """Create the index with k-NN mapping if it doesn't exist."""
-    if client.indices.exists(index=index):
-        logger.info(f"Index '{index}' already exists.")
-        return
-    client.indices.create(index=index, body=INDEX_MAPPING)
-    logger.info(f"Created index '{index}' with k-NN mapping.")
+    try:
+        client.indices.create(index=index, body=INDEX_MAPPING)
+        logger.info(f"Created index '{index}' with k-NN mapping.")
+    except Exception as e:
+        if "resource_already_exists_exception" in str(e).lower():
+            logger.info(f"Index '{index}' already exists.")
+        else:
+            raise
 
 
 # ── Bulk upload ──────────────────────────────────────────────────────────────
