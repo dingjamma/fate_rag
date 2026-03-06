@@ -14,8 +14,7 @@ from typing import Any, Optional
 import boto3
 from botocore.exceptions import ClientError, EndpointResolutionError
 from dotenv import load_dotenv
-from opensearchpy import OpenSearch, RequestsHttpConnection, helpers
-from requests_aws4auth import AWS4Auth
+from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
 
 load_dotenv()
 
@@ -114,13 +113,7 @@ def _get_opensearch_client() -> OpenSearch:
     """
     if USE_AWS_AUTH:
         credentials = boto3.Session().get_credentials()
-        aws_auth = AWS4Auth(
-            credentials.access_key,
-            credentials.secret_key,
-            AWS_REGION,
-            "aoss",
-            session_token=credentials.token,
-        )
+        aws_auth = AWSV4SignerAuth(credentials, AWS_REGION, "aoss")
         return OpenSearch(
             hosts=[{"host": OPENSEARCH_ENDPOINT.replace("https://", ""), "port": 443}],
             http_auth=aws_auth,
@@ -150,11 +143,14 @@ def _parse_local_endpoint(endpoint: str) -> tuple[str, int]:
 # ── Index management ─────────────────────────────────────────────────────────
 def ensure_index(client: OpenSearch, index: str = OPENSEARCH_INDEX) -> None:
     """Create the index with k-NN mapping if it doesn't exist."""
-    if client.indices.exists(index=index):
-        logger.info(f"Index '{index}' already exists.")
-        return
-    client.indices.create(index=index, body=INDEX_MAPPING)
-    logger.info(f"Created index '{index}' with k-NN mapping.")
+    try:
+        client.indices.create(index=index, body=INDEX_MAPPING)
+        logger.info(f"Created index '{index}' with k-NN mapping.")
+    except Exception as e:
+        if "resource_already_exists_exception" in str(e).lower():
+            logger.info(f"Index '{index}' already exists.")
+        else:
+            raise
 
 
 # ── Bulk upload ──────────────────────────────────────────────────────────────
