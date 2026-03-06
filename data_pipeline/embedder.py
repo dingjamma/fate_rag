@@ -14,8 +14,7 @@ from typing import Any, Optional
 import boto3
 from botocore.exceptions import ClientError, EndpointResolutionError
 from dotenv import load_dotenv
-from opensearchpy import OpenSearch, RequestsHttpConnection, helpers
-from requests_aws4auth import AWS4Auth
+from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
 
 load_dotenv()
 
@@ -113,14 +112,8 @@ def _get_opensearch_client() -> OpenSearch:
     falls back to basic auth for local docker-compose instance.
     """
     if USE_AWS_AUTH:
-        credentials = boto3.Session().get_credentials().get_frozen_credentials()
-        aws_auth = AWS4Auth(
-            credentials.access_key,
-            credentials.secret_key,
-            AWS_REGION,
-            "aoss",
-            session_token=credentials.token,
-        )
+        credentials = boto3.Session().get_credentials()
+        aws_auth = AWSV4SignerAuth(credentials, AWS_REGION, "aoss")
         return OpenSearch(
             hosts=[{"host": OPENSEARCH_ENDPOINT.replace("https://", ""), "port": 443}],
             http_auth=aws_auth,
