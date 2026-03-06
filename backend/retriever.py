@@ -43,7 +43,7 @@ def _get_opensearch_client() -> OpenSearch:
             credentials.access_key,
             credentials.secret_key,
             AWS_REGION,
-            "es",
+            "aoss",
             session_token=credentials.token,
         )
         endpoint = OPENSEARCH_ENDPOINT.replace("https://", "")
