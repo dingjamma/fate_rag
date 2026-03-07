@@ -2,79 +2,32 @@
 
 > *"I am the bone of my sword..."*
 
-A production-grade **Retrieval-Augmented Generation (RAG)** chatbot for the **Fate Series** universe — powered by AWS Bedrock (Claude + Titan Embeddings), OpenSearch Serverless, and FastAPI.
+A **Retrieval-Augmented Generation (RAG)** chatbot for the **Fate Series** universe — powered by AWS Bedrock (Claude + Titan Embeddings), OpenSearch Serverless, and FastAPI.
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
-[![AWS Bedrock](https://img.shields.io/badge/AWS-Bedrock-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com/bedrock/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![OpenSearch](https://img.shields.io/badge/OpenSearch-2.13-005EB8?logo=opensearch&logoColor=white)](https://opensearch.org)
-[![CDK](https://img.shields.io/badge/AWS_CDK-Python-FF9900?logo=amazonaws&logoColor=white)](https://docs.aws.amazon.com/cdk/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-222?logo=github&logoColor=white)](https://dingjamma.github.io/fate_rag/)
 
 ---
 
-## 🚀 Live Demo
+## ⚠️ AWS Backend Shut Down
 
-> **Try it now:** [**dingjamma.github.io/fate_rag**](https://dingjamma.github.io/fate_rag/)
+The live AWS backend (API Gateway + Lambda + OpenSearch Serverless + S3) has been **decommissioned** to avoid ongoing infrastructure costs. OpenSearch Serverless alone runs a minimum of ~$700/month even at zero usage.
 
-Ask it anything about the Fate universe — servants, Noble Phantasms, Masters, the Holy Grail War, lore from Fate/stay night and Fate/Zero. The backend is a real serverless AWS stack (Bedrock + OpenSearch Serverless) running live.
+The GitHub Pages frontend is still up but the API is no longer active. To run the chatbot yourself, follow the **Local Setup** section below — Docker Compose spins up a full OpenSearch stack locally at no cost.
 
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          Fate RAG Architecture                          │
-└─────────────────────────────────────────────────────────────────────────┘
-
-  ┌──────────┐    HTTP     ┌─────────────────┐    Lambda    ┌───────────┐
-  │ Browser  │ ──────────▶ │   API Gateway   │ ───────────▶ │  FastAPI  │
-  │ (HTML UI)│ ◀────────── │   (HTTP API)    │ ◀─────────── │ (Mangum)  │
-  └──────────┘             └─────────────────┘              └─────┬─────┘
-                                                                   │
-                           ┌───────────────────────────────────────┤
-                           │                                       │
-                    ┌──────▼──────┐                   ┌───────────▼──────────┐
-                    │  Retriever  │                   │  AWS Bedrock Claude   │
-                    │  (k-NN)     │                   │  (Generation)         │
-                    └──────┬──────┘                   └──────────────────────┘
-                           │
-              ┌────────────▼───────────┐
-              │   OpenSearch Serverless │
-              │   (fate-lore index)     │
-              │   k-NN vector search    │
-              └────────────┬───────────┘
-                           │
-        ┌──────────────────┼──────────────────┐
-        │                  │                  │
-  ┌─────▼──────┐   ┌───────▼──────┐   ┌──────▼──────┐
-  │  Scraper   │   │   Chunker    │   │  Embedder   │
-  │(TypeMoon   │──▶│ (tiktoken    │──▶│ (Titan v1   │
-  │  Wiki)     │   │  500 tok)    │   │  1536-dim)  │
-  └────────────┘   └──────────────┘   └─────────────┘
-        │
-  ┌─────▼──────┐
-  │    S3      │
-  │(raw docs)  │
-  └────────────┘
-
-Data Pipeline:  scraper.py → chunker.py → embedder.py
-Infrastructure: AWS CDK (Python) → infra/fate_rag_stack.py
-```
+The `infra/` CDK code and the AWS deploy workflow have been removed from the repo. The data pipeline and backend code remain intact for local use.
 
 ---
 
 ## What is RAG?
 
-**Retrieval-Augmented Generation (RAG)** is a technique that improves LLM responses by grounding them in a knowledge base:
+**Retrieval-Augmented Generation (RAG)** improves LLM responses by grounding them in a knowledge base:
 
 1. **Index**: Documents are split into chunks, converted to embedding vectors, and stored in a vector database (OpenSearch).
 2. **Retrieve**: When a user asks a question, the question is embedded and the most similar document chunks are retrieved via k-NN search.
 3. **Generate**: The retrieved chunks are injected into the prompt as context, and the LLM generates an answer grounded in that specific content.
-
-This approach combines the fluency of large language models with the factual accuracy of a dedicated knowledge base — ideal for domain-specific assistants like this Fate Series lore bot.
 
 ---
 
@@ -84,11 +37,8 @@ This approach combines the fluency of large language models with the factual acc
 |---|---|
 | **Generation** | AWS Bedrock — `claude-sonnet-4-20250514` |
 | **Embeddings** | AWS Bedrock — `amazon.titan-embed-text-v1` (1536-dim) |
-| **Vector Store** | AWS OpenSearch Serverless (k-NN, HNSW) |
+| **Vector Store** | OpenSearch (local via Docker / was AWS OpenSearch Serverless) |
 | **Backend** | FastAPI + Mangum (Lambda adapter) |
-| **Compute** | AWS Lambda (Python 3.11) |
-| **API** | AWS API Gateway (HTTP API) |
-| **Infrastructure** | AWS CDK (Python) |
 | **Data Pipeline** | BeautifulSoup4, tiktoken, boto3 |
 | **Frontend** | Vanilla HTML/CSS/JS (hosted on GitHub Pages) |
 | **Local Dev** | Docker Compose (OpenSearch + Dashboards) |
@@ -99,12 +49,6 @@ This approach combines the fluency of large language models with the factual acc
 
 ```
 fate-rag/
-├── infra/                      # AWS CDK infrastructure
-│   ├── app.py                  # CDK app entry point
-│   ├── fate_rag_stack.py       # Full AWS stack definition
-│   ├── cdk.json                # CDK configuration
-│   └── requirements.txt        # CDK-specific dependencies
-│
 ├── data_pipeline/
 │   ├── scraper.py              # Type-Moon Wiki scraper (BeautifulSoup)
 │   ├── chunker.py              # Token-aware chunking with overlap
@@ -116,16 +60,13 @@ fate-rag/
 │   └── prompt.py               # System prompt + RAG template
 │
 ├── frontend/
-│   └── index.html              # Single-page chat UI (source)
-│
-├── docs/
-│   └── index.html              # GitHub Pages deployment (copy of frontend)
+│   └── index.html              # Single-page chat UI
 │
 ├── notebooks/
 │   └── rag_exploration.ipynb   # EDA: chunking, embedding, retrieval experiments
 │
 ├── tests/
-│   ├── test_pipeline.py        # Unit tests: chunker (size, overlap, metadata)
+│   ├── test_pipeline.py        # Unit tests: chunker
 │   └── test_retriever.py       # Unit tests: retriever (mocked OpenSearch/Bedrock)
 │
 ├── sample_data/                # Pre-written Fate lore for immediate use
@@ -136,7 +77,7 @@ fate-rag/
 │   └── fate_zero_servants.json
 │
 ├── .github/workflows/
-│   └── deploy.yml              # GitHub Actions CI/CD (test + cdk deploy)
+│   └── deploy-pages.yml        # GitHub Pages deployment (frontend only)
 │
 ├── requirements.txt
 ├── .env.example
@@ -158,8 +99,8 @@ fate-rag/
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-username/fate-rag.git
-cd fate-rag
+git clone https://github.com/dingjamma/fate_rag.git
+cd fate_rag
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
@@ -201,7 +142,7 @@ python -m data_pipeline.embedder
 #### Option B: Scrape Type-Moon Wiki
 
 ```bash
-# Scrape (be polite — rate limiting is built in)
+# Scrape (rate limiting is built in)
 python -m data_pipeline.scraper
 
 # Chunk
@@ -219,70 +160,9 @@ uvicorn backend.app:app --reload --port 8000
 
 ### 6. Open the frontend
 
-**Locally** — open `frontend/index.html` in a browser, or serve it:
-
 ```bash
 python -m http.server 3000 --directory frontend
 # Then open http://localhost:3000
-```
-
-**Live (GitHub Pages)** — the UI is also hosted at:
-```
-https://dingjamma.github.io/fate_rag/
-```
-It auto-detects the hostname and points to the AWS API Gateway when not on localhost.
-
----
-
-## AWS Deployment
-
-### Prerequisites
-- AWS CDK CLI: `npm install -g aws-cdk`
-- AWS credentials with permissions for Lambda, API Gateway, OpenSearch Serverless, S3, Bedrock, IAM
-
-### 1. Install CDK dependencies
-
-```bash
-pip install -r infra/requirements.txt
-```
-
-### 2. Bootstrap CDK (once per account/region)
-
-```bash
-cdk bootstrap --app "python3 infra/app.py" \
-  --context account=YOUR_ACCOUNT_ID \
-  --context region=us-east-1
-```
-
-### 3. Deploy
-
-```bash
-# Deploy to dev environment
-cdk deploy --app "python3 infra/app.py" \
-  --context env=dev \
-  --context account=YOUR_ACCOUNT_ID \
-  --context region=us-east-1
-
-# Deploy to prod
-cdk deploy --app "python3 infra/app.py" \
-  --context env=prod \
-  --context account=YOUR_ACCOUNT_ID \
-  --context region=us-east-1
-```
-
-### 4. Run the data pipeline against AWS OpenSearch
-
-After deployment, CDK will output your OpenSearch endpoint. Update your `.env`:
-
-```bash
-OPENSEARCH_ENDPOINT=https://your-collection.us-east-1.aoss.amazonaws.com
-USE_AWS_AUTH=true
-```
-
-Then run the embedder:
-
-```bash
-python data_pipeline/embedder.py
 ```
 
 ---
@@ -292,14 +172,14 @@ python data_pipeline/embedder.py
 ### Health check
 
 ```bash
-curl https://your-api-gateway-url/health
+curl http://localhost:8000/health
 # {"status": "ok", "service": "fate-rag-chatbot"}
 ```
 
 ### Chat
 
 ```bash
-curl -X POST https://your-api-gateway-url/chat \
+curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
   -d '{
     "message": "What is Unlimited Blade Works?",
@@ -324,31 +204,6 @@ curl -X POST https://your-api-gateway-url/chat \
 }
 ```
 
-### Multi-turn conversation
-
-```bash
-curl -X POST https://your-api-gateway-url/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Who taught him this technique?",
-    "conversation_history": [
-      {"role": "user", "content": "What is Unlimited Blade Works?"},
-      {"role": "assistant", "content": "Unlimited Blade Works is..."}
-    ]
-  }'
-```
-
-### Category-filtered search
-
-```bash
-curl -X POST https://your-api-gateway-url/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Tell me about Noble Phantasms",
-    "category_filter": "noble_phantasm"
-  }'
-```
-
 ---
 
 ## Running Tests
@@ -358,68 +213,10 @@ pytest tests/ -v
 ```
 
 The test suite covers:
-- **Chunker**: Token size limits, overlap correctness, metadata preservation, edge cases (empty, short, whitespace-only documents)
-- **Retriever**: k-NN query construction, result parsing, category filtering, error propagation, multi-query deduplication
+- **Chunker**: Token size limits, overlap correctness, metadata preservation, edge cases
+- **Retriever**: k-NN query construction, result parsing, category filtering, error propagation
 
 All tests use mocked AWS/OpenSearch clients — no live infrastructure required.
-
----
-
-## GitHub Actions CI/CD
-
-The workflow at `.github/workflows/deploy.yml`:
-
-1. **On every push / PR to `main`**: Runs the full test suite.
-2. **On push to `main`**: Deploys to the `dev` AWS environment using CDK.
-
-### Required GitHub Secrets
-
-| Secret | Description |
-|---|---|
-| `AWS_DEPLOY_ROLE_ARN` | IAM role ARN with deployment permissions (OIDC) |
-| `AWS_ACCOUNT_ID` | Your AWS account ID |
-| `AWS_REGION` | Target region (e.g., `us-east-1`) |
-
----
-
-## Next Steps — Expanding the Knowledge Base
-
-The current dataset covers Fate/stay night and Fate/Zero. The priority roadmap is to expand coverage across the broader Type-Moon universe:
-
-### Content Expansion
-
-| Series | Coverage | Priority | Notes |
-|---|---|---|---|
-| **Fate/Grand Order** | Servants, Ascension lore, interludes, story chapters | High | 300+ servants; scrape FGO wiki / fandom |
-| **Fate/Extra & Fate/Extra CCC** | Moon Cell, Hakuno, BB, CCC servants | High | Distinct lore from Nasuverse proper |
-| **Fate/Apocrypha** | Black/Red Faction servants, Ruler, Shirou Kotomine | Medium | Well-documented on Type-Moon wiki |
-| **Fate/Strange Fake** | False servants, Snowfield Grail War | Medium | Ongoing novel; partial wiki coverage |
-| **Fate/Prototype** | Original Fate concepts, Arthur Pendragon | Low | Limited source material |
-| **Lord El-Melloi II Case Files** | Clock Tower mage lore, El-Melloi | Medium | Rich worldbuilding for mage society |
-| **Tsukihime / Melty Blood** | Arcs, Shiki, True Ancestors, Dead Apostles | Low | Separate continuity but shared Nasuverse |
-| **Mahoutsukai no Yoru** | Mage origins, Aoko, Alice | Low | Prequel to Nasuverse; limited English coverage |
-
-### Data Pipeline Tasks
-
-- [ ] **FGO scraper**: Target [FGO wiki](https://fategrandorder.fandom.com) — servant profiles, NP descriptions, bond/interlude lore
-- [ ] **Fate/Extra scraper**: Target [Type-Moon wiki Extra pages](https://typemoon.fandom.com/wiki/Fate/EXTRA) — Moon Cell mechanics, BB route
-- [ ] **Category tags**: Add `fgo`, `extra`, `apocrypha`, `strange_fake` category values to the chunker and OpenSearch index mapping
-- [ ] **Filter UI**: Expose new categories in the frontend filter bar
-- [ ] **Deduplication**: Servants who appear in multiple series (e.g. Cu Chulainn, Tamamo) should be merged/cross-referenced
-
----
-
-## Future Improvements
-
-- [ ] **Hybrid search**: Combine k-NN vector search with BM25 lexical search (OpenSearch hybrid query) for better recall
-- [ ] **Re-ranking**: Add a cross-encoder re-ranker to improve precision of retrieved chunks
-- [ ] **Streaming UI**: Full SSE streaming support in the frontend (the backend already supports it)
-- [ ] **Citation links**: Render source citations as clickable links in the chat UI
-- [ ] **Authentication**: Add Cognito or API key authentication to the API Gateway
-- [ ] **Evaluation**: Add a RAGAS or TruLens evaluation pipeline to measure answer quality
-- [ ] **Caching**: Use ElastiCache or Lambda response caching for frequent queries
-- [ ] **Multi-language**: Support Japanese-language queries using Amazon Titan Text Embeddings v2 multilingual model
-- [ ] **Image support**: Index Noble Phantasm images using Amazon Titan Multimodal Embeddings
 
 ---
 
@@ -428,5 +225,3 @@ The current dataset covers Fate/stay night and Fate/Zero. The priority roadmap i
 MIT © 2024 — Built with ⚔️ for the Type-Moon community.
 
 *This project is a fan work and is not affiliated with TYPE-MOON, Aniplex, or any official Fate Series rights holders.*
-
-
